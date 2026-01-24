@@ -18,12 +18,27 @@ export class BuildQuery {
     this._columns = columns.length ? columns : ["*"];
     return this;
   }
+
   from(table: string): this {
     this._table = table;
     return this;
   }
+
   where(columns: string, operator: string, value: unknown): this {
-    this._wheres.push({ columns, operator, value, connector: "AND" });
+    return this.andOrWhere(columns, operator, value, "AND");
+  }
+
+  orWhere(columns: string, operator: string, value: unknown): this {
+    return this.andOrWhere(columns, operator, value, "OR");
+  }
+
+  andOrWhere(
+    columns: string,
+    operator: string,
+    value: unknown,
+    connector: "AND" | "OR",
+  ) {
+    this._wheres.push({ columns, operator, value, connector });
     return this;
   }
 
