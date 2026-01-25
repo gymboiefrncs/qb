@@ -1,4 +1,7 @@
+import type { Pool } from "pg";
 import type { Wheres, Statements, Row } from "../types/queries.js";
+
+// TODO: make it more typesafe
 
 abstract class BaseBuilder {
   protected table: string | null = null;
@@ -73,7 +76,7 @@ export class InsertQuery extends BaseBuilder {
     return this;
   }
 
-  toSql(): string {
+  toSql(): { sql: string; bindings: Row[string][] } {
     const keys = Object.keys(this.#value).join(", ");
     const values = Object.values(this.#value);
 
@@ -81,6 +84,19 @@ export class InsertQuery extends BaseBuilder {
       return `$${i + 1}`;
     });
 
-    return `${this.#type} INTO ${this.#table} (${keys}) VALUES (${placeholders.join(", ")}) `;
+    const sql = `${this.#type} INTO ${this.#table} (${keys}) VALUES (${placeholders.join(", ")})`;
+
+    return { sql, bindings: values };
+  }
+}
+
+export class QueryExecutor {
+  #db: Pool;
+  constructor(db: Pool) {
+    this.#db = db;
+  }
+
+  async run(sql: string, bindings?: Row[string][]) {
+    return await this.#db.query(sql, bindings);
   }
 }
