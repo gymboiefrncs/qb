@@ -1,6 +1,6 @@
-import { BuildQuery } from "./lib/core.js";
+import { SelectQuery } from "./lib/core.js";
 
-const qb = new BuildQuery();
+const qb = new SelectQuery();
 
 qb.select("name", "age")
   .from("users")

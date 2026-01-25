@@ -1,26 +1,11 @@
 import type { Wheres, Statements } from "../types/queries.js";
 
-export class BuildQuery {
-  private _type: Statements;
-  private _columns: string[];
-  private _table: string | null;
-  private _wheres: Wheres[];
-
-  constructor() {
-    this._type = "SELECT";
-    this._columns = ["*"];
-    this._table = null;
-    this._wheres = [];
-  }
-
-  select(...columns: string[]): this {
-    this._type = "SELECT";
-    this._columns = columns.length ? columns : ["*"];
-    return this;
-  }
+abstract class BaseBuilder {
+  protected table: string | null = null;
+  protected wheres: Wheres[] = [];
 
   from(table: string): this {
-    this._table = table;
+    this.table = table;
     return this;
   }
 
@@ -32,20 +17,31 @@ export class BuildQuery {
     return this.andOrWhere(columns, operator, value, "OR");
   }
 
-  andOrWhere(
+  private andOrWhere(
     columns: string,
     operator: string,
     value: unknown,
     connector: "AND" | "OR",
   ) {
-    this._wheres.push({ columns, operator, value, connector });
+    this.wheres.push({ columns, operator, value, connector });
+    return this;
+  }
+}
+
+export class SelectQuery extends BaseBuilder {
+  #type: Statements = "SELECT";
+  #columns: string[] = ["*"];
+
+  select(...columns: string[]): this {
+    this.#type = "SELECT";
+    this.#columns = columns.length ? columns : ["*"];
     return this;
   }
 
   toSql(): string {
-    let sql = `${this._type} ${this._columns.join(", ")} FROM ${this._table}`;
-    if (this._wheres.length > 0) {
-      sql += ` WHERE ${this._wheres
+    let sql = `${this.#type} ${this.#columns.join(", ")} FROM ${this.table}`;
+    if (this.wheres.length > 0) {
+      sql += ` WHERE ${this.wheres
         .map((condition: Wheres, index) => {
           const part = `${condition.columns} ${condition.operator} ${condition.value}`;
 
