@@ -41,12 +41,15 @@ export class SelectQuery extends BaseBuilder {
     let sql = `${this.#type} ${this.columns.join(", ")} FROM ${this.table}`;
     if (this.wheres.length > 0) {
       sql += ` WHERE ${this.wheres
-        .map((condition: Wheres, index) => {
-          const part = `${condition.columns} ${condition.operator} ${condition.value}`;
+        .map((c, i) => {
+          const part = `${c.columns} ${c.operator} $${i + 1}`;
 
-          if (index === 0) return part;
+          // if only one condition return immediately
+          if (i === 0) return part;
 
-          return `${condition.connector} ${part}`;
+          // other wise add connector
+          return `${c.connector} ${part}`;
+          //          ^?
         })
         .join(" ")}`;
     }
@@ -71,24 +74,13 @@ export class InsertQuery extends BaseBuilder {
   }
 
   toSql(): string {
-    const sql = `${this.#type} INTO ${this.#table} (${Object.keys(this.#value).join(", ")}) VALUES (${Object.values(
-      this.#value,
-    )
-      .map((v) => {
-        if (typeof v === "string") {
-          return `'${v}'`;
-        } else if (typeof v === "number") {
-          return v;
-        } else if (typeof v === "boolean") {
-          return v ? "TRUE" : "False";
-        } else if (v === null) {
-          return "NULL";
-        } else {
-          return v;
-        }
-      })
-      .join(", ")}) `;
+    const keys = Object.keys(this.#value).join(", ");
+    const values = Object.values(this.#value);
 
-    return sql;
+    const placeholders = values.map((_, i) => {
+      return `$${i + 1}`;
+    });
+
+    return `${this.#type} INTO ${this.#table} (${keys}) VALUES (${placeholders.join(", ")}) `;
   }
 }
