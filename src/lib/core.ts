@@ -110,10 +110,21 @@ export class InsertQuery<T extends Row> extends BaseBuilder<T> {
     if (!this.#table) throw new Error("InsertQueryError: table not specified");
     const row = this.#value[0];
     if (!row) throw new Error("InsertQueryError: no values provided");
-    const keys = Object.keys(row);
-    const values = this.#value.flatMap((v) => Object.values(v));
 
-    // TODO: check for missing columns or excess columns
+    const keys = Object.keys(row);
+
+    // dont accept if order mismatch
+    for (const v of this.#value) {
+      const rowKeys = Object.keys(v);
+      for (let i = 0; i < keys.length; i++) {
+        if (rowKeys[i] !== keys[i])
+          throw new Error(
+            `InsertQueryError: column order mismatch. Expected: (${keys.join(", ")}).`,
+          );
+      }
+    }
+
+    const values = this.#value.flatMap((v) => Object.values(v));
 
     let i = 1;
     const placeholders = this.#value.map(() => {
