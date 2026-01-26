@@ -1,51 +1,61 @@
-import type { Pool } from "pg";
-import type { Wheres, Statements, Row } from "../types/queries.js";
+import type { Pool, QueryResult } from "pg";
+import type { Wheres, Statements, Row, Operator } from "../types/queries.js";
 
-// TODO: make it more typesafe
-
-abstract class BaseBuilder {
+abstract class BaseBuilder<T> {
   protected table: string | null = null;
-  protected wheres: Wheres[] = [];
-  protected columns: string[] = [];
+  protected wheres: Wheres<T, keyof T & string>[] = [];
+  protected columns: Array<keyof T | "*"> = [];
 
   from(table: string): this {
     this.table = table;
     return this;
   }
 
-  where(columns: string, operator: string, value: unknown): this {
+  where<K extends keyof T & string>(
+    columns: K,
+    operator: Operator,
+    value: T[K],
+  ): this {
     return this.#andOrWhere(columns, operator, value, "AND");
   }
 
-  orWhere(columns: string, operator: string, value: unknown): this {
+  orWhere<K extends keyof T & string>(
+    columns: K,
+    operator: Operator,
+    value: T[K],
+  ): this {
     return this.#andOrWhere(columns, operator, value, "OR");
   }
 
-  #andOrWhere(
-    columns: string,
-    operator: string,
-    value: unknown,
+  #andOrWhere<K extends keyof T & string>(
+    column: K,
+    operator: Operator,
+    value: T[K],
     connector: "AND" | "OR",
   ) {
-    this.wheres.push({ columns, operator, value, connector });
+    this.wheres.push({ column, operator, value, connector });
     return this;
   }
 }
 
-export class SelectQuery extends BaseBuilder {
+export class SelectQuery<T extends Row> extends BaseBuilder<T> {
   #type: Statements = "SELECT";
 
-  select(...columns: string[]): this {
+  select(...columns: Array<keyof T | "*">): this {
     this.columns = columns.length ? columns : ["*"];
     return this;
   }
 
-  toSql(): string {
+  toSql(): { sql: string; bindings: Array<T[keyof T]> } {
     let sql = `${this.#type} ${this.columns.join(", ")} FROM ${this.table}`;
+
+    const bindings: Array<T[keyof T]> = [];
+
     if (this.wheres.length > 0) {
       sql += ` WHERE ${this.wheres
         .map((c, i) => {
-          const part = `${c.columns} ${c.operator} $${i + 1}`;
+          bindings.push(c.value);
+          const part = `${c.column} ${c.operator} $${i + 1}`;
 
           // if only one condition return immediately
           if (i === 0) return part;
@@ -56,13 +66,13 @@ export class SelectQuery extends BaseBuilder {
         })
         .join(" ")}`;
     }
-    return sql;
+    return { sql, bindings };
   }
 }
 
-export class InsertQuery extends BaseBuilder {
+export class InsertQuery<T extends Row> extends BaseBuilder<T> {
   #type: Statements = "INSERT";
-  #value: Row = {};
+  #value: Partial<T> = {};
   #table: string | null = null;
 
   insert(table: string): this {
@@ -70,15 +80,14 @@ export class InsertQuery extends BaseBuilder {
     return this;
   }
 
-  value(val: Row): this {
-    console.log(val);
+  value(val: T): this {
     this.#value = val;
     return this;
   }
 
-  toSql(): { sql: string; bindings: Row[string][] } {
+  toSql(): { sql: string; bindings: Array<T[keyof T]> } {
     const keys = Object.keys(this.#value).join(", ");
-    const values = Object.values(this.#value);
+    const values: Array<T[keyof T]> = Object.values(this.#value);
 
     const placeholders = values.map((_, i) => {
       return `$${i + 1}`;
@@ -96,7 +105,11 @@ export class QueryExecutor {
     this.#db = db;
   }
 
-  async run(sql: string, bindings?: Row[string][]) {
+  async run<T extends Row>(
+    query: InsertQuery<Omit<T, "id">> | SelectQuery<T>,
+  ): Promise<QueryResult<T>> {
+    const { sql, bindings } = query.toSql();
+    console.log(sql, bindings.length ? bindings : "");
     return await this.#db.query(sql, bindings);
   }
 }
