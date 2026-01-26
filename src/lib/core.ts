@@ -5,6 +5,7 @@ import {
   type Row,
   type Operator,
   TO_SQL,
+  type PrimitiveTypes,
 } from "../types/queries.js";
 
 abstract class BaseBuilder<T> {
@@ -78,7 +79,7 @@ export class SelectQuery<T extends Row> extends BaseBuilder<T> {
 
 export class InsertQuery<T extends Row> extends BaseBuilder<T> {
   #type: Statements = "INSERT";
-  #value: Partial<T> = {};
+  #value: T[] = [];
   #table: string | null = null;
 
   insert(table: string): this {
@@ -88,12 +89,14 @@ export class InsertQuery<T extends Row> extends BaseBuilder<T> {
     return this;
   }
 
-  value(val: T): this {
-    if (!val || !Object.keys(val).length)
+  value(...val: T[]): this {
+    if (val.some((v) => !Object.keys(v).length))
       throw new Error(
         "InsertQueryError: values must have at least one property",
       );
-    this.#value = val;
+
+    this.#value.push(...val);
+
     return this;
   }
 
@@ -103,24 +106,29 @@ export class InsertQuery<T extends Row> extends BaseBuilder<T> {
   }
 
   // this function can only be used internally
-  [TO_SQL](): { sql: string; bindings: Array<T[keyof T]> } {
+  [TO_SQL](): { sql: string; bindings: PrimitiveTypes[] } {
     if (!this.#table) throw new Error("InsertQueryError: table not specified");
+    const row = this.#value[0];
+    if (!row) throw new Error("InsertQueryError: no values provided");
+    const keys = Object.keys(row);
+    const values = this.#value.flatMap((v) => keys.map((k) => v[k]!));
 
-    const keys = Object.keys(this.#value).join(", ");
-    if (!keys.length) throw new Error("InsertQueryError: no values provided");
+    // TODO: check for missing columns or excess columns
 
-    const values: Array<T[keyof T]> = Object.values(this.#value);
+    let i = 1;
+    const placeholders = this.#value.map(() => {
+      const count = keys.length;
 
-    const placeholders = values.map((_, i) => {
-      return `$${i + 1}`;
+      // generate placeholders based on the number of columns
+      const placeholders = Array.from({ length: count }, () => `$${i++}`);
+      return `(${placeholders.join(", ")})`;
     });
 
     const returning = this.columns.length
       ? `RETURNING ${this.columns.join(", ")} `
       : "";
 
-    const sql = `${this.#type} INTO ${this.#table} (${keys}) VALUES (${placeholders.join(", ")}) ${returning}`;
-
+    const sql = `${this.#type} INTO ${this.#table} (${keys.join(", ")}) VALUES ${placeholders.join(", ")} ${returning}`;
     return { sql, bindings: values };
   }
 }
