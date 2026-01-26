@@ -111,7 +111,7 @@ export class InsertQuery<T extends Row> extends BaseBuilder<T> {
     const row = this.#value[0];
     if (!row) throw new Error("InsertQueryError: no values provided");
     const keys = Object.keys(row);
-    const values = this.#value.flatMap((v) => keys.map((k) => v[k]!));
+    const values = this.#value.flatMap((v) => Object.values(v));
 
     // TODO: check for missing columns or excess columns
 
@@ -141,6 +141,7 @@ export class QueryExecutor {
 
   async insert<T extends Row>(query: InsertQuery<T>): Promise<QueryResult<T>> {
     const { sql, bindings } = query[TO_SQL]();
+    console.log(sql, bindings);
     return await this.#db.query<T>(sql, bindings);
   }
 

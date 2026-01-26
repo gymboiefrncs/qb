@@ -7,7 +7,10 @@ async function test() {
   try {
     const result = await executor.insert<UserWithoutID>(
       new InsertQuery<Omit<User, "id">>()
-        .value({ name: "test 3", is_admin: true })
+        .value(
+          { name: "test 3", is_admin: true },
+          { is_admin: false, name: "non" },
+        )
         .returning()
         .insert("users"),
     );
