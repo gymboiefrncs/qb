@@ -1,5 +1,11 @@
 import type { Pool, QueryResult } from "pg";
-import type { Wheres, Statements, Row, Operator } from "../types/queries.js";
+import {
+  type Wheres,
+  type Statements,
+  type Row,
+  type Operator,
+  TO_SQL,
+} from "../types/queries.js";
 
 abstract class BaseBuilder<T> {
   protected table: string | null = null;
@@ -76,24 +82,44 @@ export class InsertQuery<T extends Row> extends BaseBuilder<T> {
   #table: string | null = null;
 
   insert(table: string): this {
+    if (!table || table.trim() === "")
+      throw new Error("InsertQueryError: table must be a non-empty string");
     this.#table = table;
     return this;
   }
 
   value(val: T): this {
+    if (!val || !Object.keys(val).length)
+      throw new Error(
+        "InsertQueryError: values must have at least one property",
+      );
     this.#value = val;
     return this;
   }
 
-  toSql(): { sql: string; bindings: Array<T[keyof T]> } {
+  returning(...columns: Array<keyof T | "*">): this {
+    this.columns = columns.length ? columns : ["*"];
+    return this;
+  }
+
+  // this function can only be used internally
+  [TO_SQL](): { sql: string; bindings: Array<T[keyof T]> } {
+    if (!this.#table) throw new Error("InsertQueryError: table not specified");
+
     const keys = Object.keys(this.#value).join(", ");
+    if (!keys.length) throw new Error("InsertQueryError: no values provided");
+
     const values: Array<T[keyof T]> = Object.values(this.#value);
 
     const placeholders = values.map((_, i) => {
       return `$${i + 1}`;
     });
 
-    const sql = `${this.#type} INTO ${this.#table} (${keys}) VALUES (${placeholders.join(", ")})`;
+    const returning = this.columns.length
+      ? `RETURNING ${this.columns.join(", ")} `
+      : "";
+
+    const sql = `${this.#type} INTO ${this.#table} (${keys}) VALUES (${placeholders.join(", ")}) ${returning}`;
 
     return { sql, bindings: values };
   }
@@ -105,11 +131,14 @@ export class QueryExecutor {
     this.#db = db;
   }
 
-  async run<T extends Row>(
-    query: InsertQuery<Omit<T, "id">> | SelectQuery<T>,
-  ): Promise<QueryResult<T>> {
+  async insert<T extends Row>(query: InsertQuery<T>): Promise<QueryResult<T>> {
+    const { sql, bindings } = query[TO_SQL]();
+    return await this.#db.query<T>(sql, bindings);
+  }
+
+  async select<T extends Row>(query: SelectQuery<T>): Promise<QueryResult<T>> {
     const { sql, bindings } = query.toSql();
     console.log(sql, bindings.length ? bindings : "");
-    return await this.#db.query(sql, bindings);
+    return await this.#db.query<T>(sql, bindings);
   }
 }

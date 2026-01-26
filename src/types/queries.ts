@@ -13,8 +13,12 @@ export type User = {
   is_admin: boolean;
 };
 
+export type UserWithoutID = Omit<User, "id">;
+
 export type Statements = "SELECT" | "INSERT" | "UPDATE" | "DELETE";
 
 export type PrimitiveTypes = string | number | boolean | null;
 
 export type Row = Record<string, PrimitiveTypes>;
+
+export const TO_SQL = Symbol("TO_SQL");
