@@ -113,9 +113,13 @@ export class InsertQuery<T extends Row> extends BaseBuilder<T> {
 
     const keys = Object.keys(row);
 
-    // dont accept if order mismatch
+    // dont accept if column order or count mismatch
     for (const v of this.#value) {
       const rowKeys = Object.keys(v);
+
+      if (rowKeys.length !== keys.length)
+        throw new Error("InsertQueryError: column count mismatch");
+
       for (let i = 0; i < keys.length; i++) {
         if (rowKeys[i] !== keys[i])
           throw new Error(
