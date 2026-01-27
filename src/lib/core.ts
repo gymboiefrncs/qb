@@ -1,150 +1,77 @@
 import type { Pool, QueryResult } from "pg";
-import {
-  type Wheres,
-  type Statements,
-  type Row,
-  type Operator,
-  TO_SQL,
-  type PrimitiveTypes,
-} from "../types/queries.js";
+import { TO_SQL, type PrimitiveTypes } from "../types/queries.js";
 
-abstract class BaseBuilder<T> {
-  protected table: string | null = null;
-  protected wheres: Wheres<T, keyof T & string>[] = [];
-  protected columns: Array<keyof T | "*"> = [];
+export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
+  #values: T[] = [];
+  #table: string;
+  #columns: Array<keyof T | "*"> | null = null;
 
-  from(table: string): this {
-    this.table = table;
-    return this;
-  }
-
-  where<K extends keyof T & string>(
-    columns: K,
-    operator: Operator,
-    value: T[K],
-  ): this {
-    return this.#andOrWhere(columns, operator, value, "AND");
-  }
-
-  orWhere<K extends keyof T & string>(
-    columns: K,
-    operator: Operator,
-    value: T[K],
-  ): this {
-    return this.#andOrWhere(columns, operator, value, "OR");
-  }
-
-  #andOrWhere<K extends keyof T & string>(
-    column: K,
-    operator: Operator,
-    value: T[K],
-    connector: "AND" | "OR",
-  ) {
-    this.wheres.push({ column, operator, value, connector });
-    return this;
-  }
-}
-
-export class SelectQuery<T extends Row> extends BaseBuilder<T> {
-  #type: Statements = "SELECT";
-
-  select(...columns: Array<keyof T | "*">): this {
-    this.columns = columns.length ? columns : ["*"];
-    return this;
-  }
-
-  toSql(): { sql: string; bindings: Array<T[keyof T]> } {
-    let sql = `${this.#type} ${this.columns.join(", ")} FROM ${this.table}`;
-
-    const bindings: Array<T[keyof T]> = [];
-
-    if (this.wheres.length > 0) {
-      sql += ` WHERE ${this.wheres
-        .map((c, i) => {
-          bindings.push(c.value);
-          const part = `${c.column} ${c.operator} $${i + 1}`;
-
-          // if only one condition return immediately
-          if (i === 0) return part;
-
-          // other wise add connector
-          return `${c.connector} ${part}`;
-          //          ^?
-        })
-        .join(" ")}`;
-    }
-    return { sql, bindings };
-  }
-}
-
-export class InsertQuery<T extends Row> extends BaseBuilder<T> {
-  #type: Statements = "INSERT";
-  #value: T[] = [];
-  #table: string | null = null;
-
-  insert(table: string): this {
-    if (!table || table.trim() === "")
-      throw new Error("InsertQueryError: table must be a non-empty string");
+  constructor(table: string) {
     this.#table = table;
-    return this;
   }
 
-  value(...val: T[]): this {
+  values<K extends T[]>(...val: K): this {
     if (val.some((v) => !Object.keys(v).length))
       throw new Error(
         "InsertQueryError: values must have at least one property",
       );
 
-    this.#value.push(...val);
+    this.#values.push(...val);
 
     return this;
   }
 
-  returning(...columns: Array<keyof T | "*">): this {
-    this.columns = columns.length ? columns : ["*"];
+  returning<K extends Array<keyof T | "*">>(...columns: K): this {
+    this.#columns = columns.length ? columns : ["*"];
     return this;
   }
 
-  // this function can only be used internally
-  [TO_SQL](): { sql: string; bindings: PrimitiveTypes[] } {
+  /**
+   * this function can only be used internally
+   * @returns an object containing the sql statement and the bindings
+   */
+  [TO_SQL](): { sql: string; bindings: unknown[] } {
     if (!this.#table) throw new Error("InsertQueryError: table not specified");
-    const row = this.#value[0];
-    if (!row) throw new Error("InsertQueryError: no values provided");
+    if (!this.#values.length)
+      throw new Error("InsertQueryError: no values provided");
 
-    const keys = Object.keys(row);
+    const rows = this.#values;
+    const bindings: unknown[] = [];
 
-    // dont accept if column order or count mismatch
-    for (const v of this.#value) {
-      const rowKeys = Object.keys(v);
-
-      if (rowKeys.length !== keys.length)
-        throw new Error("InsertQueryError: column count mismatch");
-
-      for (let i = 0; i < keys.length; i++) {
-        if (rowKeys[i] !== keys[i])
-          throw new Error(
-            `InsertQueryError: column order mismatch. Expected: (${keys.join(", ")}).`,
-          );
-      }
-    }
-
-    const values = this.#value.flatMap((v) => Object.values(v));
+    // extract keys
+    const allKeys = Array.from(
+      new Set(rows.flatMap((k) => Object.keys(k) as Array<keyof T>)),
+    );
 
     let i = 1;
-    const placeholders = this.#value.map(() => {
-      const count = keys.length;
 
-      // generate placeholders based on the number of columns
-      const placeholders = Array.from({ length: count }, () => `$${i++}`);
+    /**
+     * generates the positional parameters of the sql query
+     *
+     * iterates through all possible keys.
+     * if a value is missing, it binds 'DEFAULT' otherwise,
+     * it pushed the value to the 'bindings' array  and returns a positional parameters
+     */
+    const placeholderGroups = rows.map((row) => {
+      const placeholders = allKeys.map((key) => {
+        if (row[key] === undefined) {
+          return "DEFAULT";
+        } else {
+          bindings.push(row[key]);
+          return `$${i++}`;
+        }
+      });
       return `(${placeholders.join(", ")})`;
     });
 
-    const returning = this.columns.length
-      ? `RETURNING ${this.columns.join(", ")} `
+    const returning = this.#columns
+      ? `RETURNING ${this.#columns.join(", ")} `
       : "";
 
-    const sql = `${this.#type} INTO ${this.#table} (${keys.join(", ")}) VALUES ${placeholders.join(", ")} ${returning}`;
-    return { sql, bindings: values };
+    // build the sql statement
+    const sql = `INSERT INTO "${this.#table}" (${allKeys.join(", ")}) VALUES ${placeholderGroups.join(", ")} ${returning}`;
+
+    return { sql, bindings };
   }
 }
 
@@ -154,15 +81,12 @@ export class QueryExecutor {
     this.#db = db;
   }
 
-  async insert<T extends Row>(query: InsertQuery<T>): Promise<QueryResult<T>> {
+  // perform sql insert statement
+  async insert<T extends Record<string, PrimitiveTypes>>(
+    query: InsertQuery<T>,
+  ): Promise<QueryResult<T>> {
     const { sql, bindings } = query[TO_SQL]();
     console.log(sql, bindings);
-    return await this.#db.query<T>(sql, bindings);
-  }
-
-  async select<T extends Row>(query: SelectQuery<T>): Promise<QueryResult<T>> {
-    const { sql, bindings } = query.toSql();
-    console.log(sql, bindings.length ? bindings : "");
     return await this.#db.query<T>(sql, bindings);
   }
 }

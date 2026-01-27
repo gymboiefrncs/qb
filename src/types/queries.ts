@@ -1,24 +1,30 @@
-export type Operator = "=" | "!=" | ">" | "<" | ">=" | "<=";
-
-export type Wheres<T, K extends keyof T> = {
-  column: K & string;
-  operator: Operator;
-  value: T[K];
-  connector: "AND" | "OR";
-};
-
 export type User = {
-  id: number;
+  id?: number;
   name: string;
-  is_admin: boolean;
+  is_admin?: boolean;
+  age: number | null;
 };
 
-export type UserWithoutID = Omit<User, "id">;
+type Post = {
+  id: number;
+  title: string;
+  content: string;
+};
 
-export type Statements = "SELECT" | "INSERT" | "UPDATE" | "DELETE";
+type Comments = {
+  id: number;
+  postId: number;
+  content: string;
+};
+
+export type TableMap = {
+  users: User;
+  posts: Post;
+  comments: Comments;
+};
+
+export type InsertTable<T extends keyof TableMap> = Omit<TableMap[T], "id">;
 
 export type PrimitiveTypes = string | number | boolean | null;
-
-export type Row = Record<string, PrimitiveTypes>;
 
 export const TO_SQL = Symbol("TO_SQL");

@@ -1,19 +1,20 @@
 import { pool } from "./db.js";
 import { InsertQuery, QueryExecutor } from "./lib/core.js";
-import type { User, UserWithoutID } from "./types/queries.js";
+import type { User } from "./types/queries.js";
 
 async function test() {
   const executor = new QueryExecutor(pool);
   try {
-    const result = await executor.insert<UserWithoutID>(
-      new InsertQuery<Omit<User, "id">>()
-        .value(
-          { name: "test 3", is_admin: false },
-          { is_admin: true, name: "ds" },
+    const result = await executor.insert(
+      new InsertQuery<User>("users")
+        .values(
+          { name: "something", age: null },
+          { name: "something", age: 3 },
+          { age: null, name: "ndek" },
         )
-        .returning()
-        .insert("users"),
+        .returning("id", "is_admin"),
     );
+
     console.log(result.rows);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
