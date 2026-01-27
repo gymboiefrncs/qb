@@ -1,4 +1,3 @@
-import type { Pool, QueryResult } from "pg";
 import { TO_SQL, type PrimitiveTypes } from "../../types/queries.js";
 
 export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
@@ -72,21 +71,5 @@ export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
     const sql = `INSERT INTO "${this.#table}" (${allKeys.join(", ")}) VALUES ${placeholderGroups.join(", ")} ${returning}`;
 
     return { sql, bindings };
-  }
-}
-
-export class QueryExecutor {
-  #db: Pool;
-  constructor(db: Pool) {
-    this.#db = db;
-  }
-
-  // perform sql insert statement
-  async insert<T extends Record<string, PrimitiveTypes>>(
-    query: InsertQuery<T>,
-  ): Promise<QueryResult<T>> {
-    const { sql, bindings } = query[TO_SQL]();
-    console.log(sql, bindings);
-    return await this.#db.query<T>(sql, bindings);
   }
 }
