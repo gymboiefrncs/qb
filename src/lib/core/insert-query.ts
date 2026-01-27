@@ -1,5 +1,5 @@
 import type { Pool, QueryResult } from "pg";
-import { TO_SQL, type PrimitiveTypes } from "../types/queries.js";
+import { TO_SQL, type PrimitiveTypes } from "../../types/queries.js";
 
 export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
   #values: T[] = [];

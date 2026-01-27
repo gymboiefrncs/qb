@@ -1,5 +1,5 @@
 import { pool } from "./db.js";
-import { InsertQuery, QueryExecutor } from "./lib/core.js";
+import { InsertQuery, QueryExecutor } from "./lib/core/insert-query.js";
 import type { User } from "./types/queries.js";
 
 async function test() {
