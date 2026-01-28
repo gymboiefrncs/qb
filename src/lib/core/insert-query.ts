@@ -1,4 +1,4 @@
-import { TO_SQL, type PrimitiveTypes } from "../../types/queries.js";
+import { INSERT_TO_SQL, type PrimitiveTypes } from "../../types/queries.js";
 
 export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
   #values: T[] = [];
@@ -29,7 +29,7 @@ export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
    * this function can only be used internally
    * @returns an object containing the sql statement and the bindings
    */
-  [TO_SQL](): { sql: string; bindings: unknown[] } {
+  [INSERT_TO_SQL](): { sql: string; bindings: unknown[] } {
     if (!this.#table) throw new Error("InsertQueryError: table not specified");
     if (!this.#values.length)
       throw new Error("InsertQueryError: no values provided");

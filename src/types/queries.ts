@@ -5,26 +5,18 @@ export type User = {
   age: number | null;
 };
 
-type Post = {
-  id: number;
-  title: string;
-  content: string;
+export type Conditions = {
+  column: unknown;
+  operator: Operators;
+  value: unknown;
+  connector?: Connector;
 };
 
-type Comments = {
-  id: number;
-  postId: number;
-  content: string;
-};
+export type Operators = ">" | "<" | "=" | "!=";
 
-export type TableMap = {
-  users: User;
-  posts: Post;
-  comments: Comments;
-};
-
-export type InsertTable<T extends keyof TableMap> = Omit<TableMap[T], "id">;
+export type Connector = "AND" | "OR";
 
 export type PrimitiveTypes = string | number | boolean | null;
 
-export const TO_SQL = Symbol("TO_SQL");
+export const INSERT_TO_SQL = Symbol("INSERT");
+export const SELECT_TO_SQL = Symbol("SELECT");
