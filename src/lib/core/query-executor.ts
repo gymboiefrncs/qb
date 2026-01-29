@@ -1,28 +1,27 @@
-import type { Pool, QueryResult } from "pg";
-import type { PrimitiveTypes } from "../../types/queries.js";
-import { INSERT_TO_SQL, SELECT_TO_SQL } from "../../types/queries.js";
+import type { Pool } from "pg";
+import type { ExecutableQuery, PrimitiveTypes } from "../../types/queries.js";
 import { InsertQuery } from "./insert-query.js";
-import type { SelectQuery } from "./select-query.js";
-export class QueryExecutor {
+import { SelectQuery } from "./select-query.js";
+
+export class QueryExecutor<
+  TTable extends Record<string, Record<string, PrimitiveTypes>>,
+> {
   #db: Pool;
   constructor(db: Pool) {
     this.#db = db;
   }
 
-  // perform sql insert statement
-  async insert<T extends Record<string, PrimitiveTypes>>(
-    query: InsertQuery<T>,
-  ): Promise<QueryResult<T>> {
-    const { sql, bindings } = query[INSERT_TO_SQL]();
-    console.log(sql, bindings);
-    return await this.#db.query<T>(sql, bindings);
+  insert<T extends keyof TTable>(table: T) {
+    return new InsertQuery<TTable, T>(table);
   }
 
-  async select<T extends Record<string, PrimitiveTypes>>(
-    query: SelectQuery<T>,
-  ) {
-    const { sql, bindings } = query[SELECT_TO_SQL]();
-    console.log(sql, bindings);
-    return await this.#db.query<T>(sql, bindings);
+  select<T extends keyof TTable>(table: T) {
+    return new SelectQuery<TTable, T>(table);
+  }
+
+  // perform sql insert statement
+  async execute(query: ExecutableQuery) {
+    const { sql, bindings } = query.toSql();
+    return await this.#db.query(sql, bindings);
   }
 }

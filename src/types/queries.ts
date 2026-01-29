@@ -5,6 +5,10 @@ export type User = {
   age: number | null;
 };
 
+export type TableMap = {
+  users: User;
+};
+
 export type Conditions = {
   column: unknown;
   operator: Operators;
@@ -12,11 +16,10 @@ export type Conditions = {
   connector?: Connector;
 };
 
+export type ExecutableQuery = { toSql(): { sql: string; bindings: unknown[] } };
+
 export type Operators = ">" | "<" | "=" | "!=";
 
 export type Connector = "AND" | "OR";
 
 export type PrimitiveTypes = string | number | boolean | null;
-
-export const INSERT_TO_SQL = Symbol("INSERT");
-export const SELECT_TO_SQL = Symbol("SELECT");

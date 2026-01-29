@@ -1,15 +1,18 @@
-import { INSERT_TO_SQL, type PrimitiveTypes } from "../../types/queries.js";
+import type { PrimitiveTypes } from "../../types/queries.js";
 
-export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
-  #values: T[] = [];
-  #table: string;
-  #columns: Array<keyof T | "*"> | null = null;
+export class InsertQuery<
+  TTable extends Record<string, Record<string, PrimitiveTypes>>,
+  T extends keyof TTable,
+> {
+  #values: TTable[T][] = [];
+  #table: T;
+  #columns: Array<keyof TTable[T] | "*"> | null = null;
 
-  constructor(table: string) {
+  constructor(table: T) {
     this.#table = table;
   }
 
-  values(...val: T[]): this {
+  values(...val: TTable[T][]): this {
     if (val.some((v) => !Object.keys(v).length))
       throw new Error(
         "InsertQueryError: values must have at least one property",
@@ -20,16 +23,18 @@ export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
     return this;
   }
 
-  returning(...columns: Array<keyof T | "*">): this {
+  returning(...columns: Array<keyof TTable[T] | "*">): this {
     this.#columns = columns.length ? columns : ["*"];
     return this;
   }
 
   /**
-   * this function can only be used internally
-   * @returns an object containing the sql statement and the bindings
+   * @internal For debugging only.
+   * Use QueryExecutor instance.execute() in normal usage.
+   *
+   * @returns an object containing sql statement and bindings
    */
-  [INSERT_TO_SQL](): { sql: string; bindings: unknown[] } {
+  toSql(): { sql: string; bindings: unknown[] } {
     if (!this.#table) throw new Error("InsertQueryError: table not specified");
     if (!this.#values.length)
       throw new Error("InsertQueryError: no values provided");
@@ -38,12 +43,9 @@ export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
     const bindings: unknown[] = [];
 
     // extract keys
-    const allKeys = Array.from(
-      new Set(rows.flatMap((k) => Object.keys(k) as Array<keyof T>)),
-    );
+    const allKeys = Array.from(new Set(rows.flatMap((k) => Object.keys(k))));
 
     let i = 1;
-
     /**
      * generates the positional parameters of the sql query
      *
@@ -68,7 +70,7 @@ export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
       : "";
 
     // build the sql statement
-    const sql = `INSERT INTO "${this.#table}" (${allKeys.join(", ")}) VALUES ${placeholderGroups.join(", ")} ${returning}`;
+    const sql = `INSERT INTO ${String(this.#table)} (${allKeys.join(", ")}) VALUES ${placeholderGroups.join(", ")} ${returning}`;
 
     return { sql, bindings };
   }

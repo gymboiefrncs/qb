@@ -1,28 +1,23 @@
 import { pool } from "./db.js";
-import { InsertQuery } from "./lib/core/insert-query.js";
+// import { InsertQuery } from "./lib/core/insert-query.js";
 // import { InsertQuery } from "./lib/core/insert-query.js";
 import { QueryExecutor } from "./lib/core/query-executor.js";
-import { SelectQuery } from "./lib/core/select-query.js";
-import type { User } from "./types/queries.js";
-
+import type { TableMap } from "./types/queries.js";
 async function test() {
-  const executor = new QueryExecutor(pool);
+  const executor = new QueryExecutor<TableMap>(pool);
   try {
-    const i = await executor.insert(
-      new InsertQuery<User>("users")
-        .values({
-          age: 5,
-          name: "ddfa",
-          is_admin: true,
-        })
-        .returning("name"),
-    );
-    const s = await executor.select(
-      new SelectQuery<User>("users").columns().where("id", "=", 1),
-    );
-    console.log("select", i.rows);
-
-    console.log("select", s.rows);
+    const i = executor
+      .insert("users")
+      .values(
+        { name: "francis", is_admin: true, age: 2 },
+        { name: "djnaf", age: 9 },
+      )
+      .returning();
+    const s = executor.select("users").columns();
+    const insertResult = await executor.execute(i);
+    const selectResult = await executor.execute(s);
+    console.log(insertResult.rows);
+    console.log(selectResult.rows);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
   } finally {

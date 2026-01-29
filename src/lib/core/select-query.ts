@@ -1,20 +1,22 @@
-import {
-  type PrimitiveTypes,
-  type Operators,
-  SELECT_TO_SQL,
-  type Conditions,
+import type {
+  PrimitiveTypes,
+  Operators,
+  Conditions,
 } from "../../types/queries.js";
 
-export class SelectQuery<T extends Record<string, PrimitiveTypes>> {
-  #columns: Array<keyof T | "*"> | null = null;
-  #table: string;
+export class SelectQuery<
+  TTable extends Record<string, Record<string, PrimitiveTypes>>,
+  T extends keyof TTable,
+> {
+  #columns: Array<keyof TTable[T] | "*"> | null = null;
+  #table: T;
   #conditions: Conditions[] = [];
 
-  constructor(table: string) {
+  constructor(table: T) {
     this.#table = table;
   }
 
-  columns<K extends Array<keyof T | "*">>(...col: K): this {
+  columns(...col: Array<keyof TTable[T] | "*">): this {
     this.#columns = col.length ? col : ["*"];
     return this;
   }
@@ -51,12 +53,16 @@ export class SelectQuery<T extends Record<string, PrimitiveTypes>> {
     return this;
   }
 
-  [SELECT_TO_SQL]() {
+  /**
+   * @internal For debugging only.
+   * Use QueryExecutor instance.execute() in normal usage.
+   *
+   * @returns an object containing sql statement and bindings
+   */
+  toSql() {
     if (!this.#table) throw new Error("SelectQueryError: table not specified");
     if (!this.#columns)
       throw new Error("SelectQueryError: column not provided");
-    if (!this.#conditions.length)
-      throw new Error("SelectQueryError: no condition provided");
 
     let placeholder = 1;
     // if theres only one condition, dont add prefix. otherwise, add prefix
@@ -70,7 +76,7 @@ export class SelectQuery<T extends Record<string, PrimitiveTypes>> {
     const whereClause = condition ? ` WHERE${condition}` : "";
 
     const bindings = this.#conditions.map((c) => c.value);
-    const sql = `SELECT ${this.#columns.join(", ")} FROM ${this.#table}${whereClause}`;
+    const sql = `SELECT ${this.#columns.join(", ")} FROM ${String(this.#table)}${whereClause}`;
 
     return { sql, bindings };
   }
