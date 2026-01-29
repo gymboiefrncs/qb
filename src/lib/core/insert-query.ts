@@ -9,7 +9,7 @@ export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
     this.#table = table;
   }
 
-  values<K extends T[]>(...val: K): this {
+  values(...val: T[]): this {
     if (val.some((v) => !Object.keys(v).length))
       throw new Error(
         "InsertQueryError: values must have at least one property",
@@ -20,7 +20,7 @@ export class InsertQuery<T extends Record<string, PrimitiveTypes>> {
     return this;
   }
 
-  returning<K extends Array<keyof T | "*">>(...columns: K): this {
+  returning(...columns: Array<keyof T | "*">): this {
     this.#columns = columns.length ? columns : ["*"];
     return this;
   }
