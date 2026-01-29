@@ -58,16 +58,20 @@ export class SelectQuery<T extends Record<string, PrimitiveTypes>> {
     if (!this.#conditions.length)
       throw new Error("SelectQueryError: no condition provided");
 
+    let placeholder = 1;
     // if theres only one condition, dont add prefix. otherwise, add prefix
-    const where = this.#conditions
+    const condition = this.#conditions
       .map((c, i) => {
-        const prefix = i === 0 ? "" : `${c.connector}`;
-        return ` ${prefix} ${c.column} ${c.operator} ${c.value}`;
+        const prefix = i === 0 ? "" : ` ${c.connector}`;
+        return `${prefix} ${c.column} ${c.operator} $${placeholder++}`;
       })
       .join("");
 
-    const sql = `SELECT ${this.#columns.join(", ")} FROM ${this.#table} ${where}`;
+    const whereClause = condition ? ` WHERE${condition}` : "";
 
-    return { sql };
+    const bindings = this.#conditions.map((c) => c.value);
+    const sql = `SELECT ${this.#columns.join(", ")} FROM ${this.#table}${whereClause}`;
+
+    return { sql, bindings };
   }
 }

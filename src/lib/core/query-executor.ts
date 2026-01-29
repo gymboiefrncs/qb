@@ -21,7 +21,7 @@ export class QueryExecutor {
   async select<T extends Record<string, PrimitiveTypes>>(
     query: SelectQuery<T>,
   ) {
-    const { sql } = query[SELECT_TO_SQL]();
-    console.log(sql);
+    const { sql, bindings } = query[SELECT_TO_SQL]();
+    console.log(sql, bindings);
   }
 }
