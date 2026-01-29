@@ -23,5 +23,6 @@ export class QueryExecutor {
   ) {
     const { sql, bindings } = query[SELECT_TO_SQL]();
     console.log(sql, bindings);
+    return await this.#db.query<T>(sql, bindings);
   }
 }
