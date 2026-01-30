@@ -3,6 +3,7 @@ import type { ExecutableQuery, PrimitiveTypes } from "../../types/queries.js";
 import { InsertQuery } from "./insert-query.js";
 import { SelectQuery } from "./select-query.js";
 import { UpdateQuery } from "./update-query.js";
+import { DeleteQuery } from "./delete-query.js";
 
 export class QueryExecutor<
   TTable extends Record<string, Record<string, PrimitiveTypes>>,
@@ -22,6 +23,10 @@ export class QueryExecutor<
 
   update<T extends keyof TTable>(table: T) {
     return new UpdateQuery<TTable, T>(table);
+  }
+
+  delete<T extends keyof TTable>(table: T) {
+    return new DeleteQuery<TTable, T>(table);
   }
 
   // perform sql insert statement

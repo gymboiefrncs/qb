@@ -6,21 +6,8 @@ import type { TableMap } from "./types/queries.js";
 async function test() {
   const executor = new QueryExecutor<TableMap>(pool);
   try {
-    // const i = executor
-    //   .insert("users")
-    //   .values({ name: "some name", age: 12, is_admin: true })
-    //   .returning();
-
-    const u = executor
-      .update("users")
-      .set({ name: "some" })
-      .where("id", "=", 1)
-      .returning("*");
-
-    const updateResult = await executor.execute(u);
-    // const insertResult = await executor.execute(i);
-    // console.log("Insert", insertResult.rows[0]);
-    console.log("Update", updateResult.rows[0]);
+    const d = executor.delete("users").where("id", "=", 1);
+    await executor.execute(d);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
   } finally {
