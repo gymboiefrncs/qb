@@ -1,16 +1,11 @@
 import type { PrimitiveTypes } from "../../types/queries.js";
+import { BaseQuery } from "./base-query.js";
 
 export class InsertQuery<
   TTable extends Record<string, Record<string, PrimitiveTypes>>,
   T extends keyof TTable,
-> {
+> extends BaseQuery<TTable, T> {
   #values: TTable[T][] = [];
-  #table: T;
-  #columns: Array<keyof TTable[T] | "*"> | null = null;
-
-  constructor(table: T) {
-    this.#table = table;
-  }
 
   values(...val: TTable[T][]): this {
     if (val.some((v) => !Object.keys(v).length))
@@ -24,7 +19,7 @@ export class InsertQuery<
   }
 
   returning(...columns: Array<keyof TTable[T] | "*">): this {
-    this.#columns = columns.length ? columns : ["*"];
+    this._columns = columns.length ? columns : ["*"];
     return this;
   }
 
@@ -35,7 +30,7 @@ export class InsertQuery<
    * @returns an object containing sql statement and bindings
    */
   toSql(): { sql: string; bindings: unknown[] } {
-    if (!this.#table) throw new Error("InsertQueryError: table not specified");
+    if (!this._table) throw new Error("InsertQueryError: table not specified");
     if (!this.#values.length)
       throw new Error("InsertQueryError: no values provided");
 
@@ -65,12 +60,12 @@ export class InsertQuery<
       return `(${placeholders.join(", ")})`;
     });
 
-    const returning = this.#columns
-      ? `RETURNING ${this.#columns.join(", ")} `
+    const returning = this._columns
+      ? `RETURNING ${this._columns.join(", ")} `
       : "";
 
     // build the sql statement
-    const sql = `INSERT INTO ${String(this.#table)} (${allKeys.join(", ")}) VALUES ${placeholderGroups.join(", ")} ${returning}`;
+    const sql = `INSERT INTO ${String(this._table)} (${allKeys.join(", ")}) VALUES ${placeholderGroups.join(", ")} ${returning}`;
 
     return { sql, bindings };
   }
