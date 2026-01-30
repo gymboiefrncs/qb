@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import type { ExecutableQuery, PrimitiveTypes } from "../../types/queries.js";
 import { InsertQuery } from "./insert-query.js";
 import { SelectQuery } from "./select-query.js";
+import { UpdateQuery } from "./update-query.js";
 
 export class QueryExecutor<
   TTable extends Record<string, Record<string, PrimitiveTypes>>,
@@ -19,9 +20,14 @@ export class QueryExecutor<
     return new SelectQuery<TTable, T>(table);
   }
 
+  update<T extends keyof TTable>(table: T) {
+    return new UpdateQuery<TTable, T>(table);
+  }
+
   // perform sql insert statement
   async execute(query: ExecutableQuery) {
     const { sql, bindings } = query.toSql();
+    console.log(sql, bindings);
     return await this.#db.query(sql, bindings);
   }
 }

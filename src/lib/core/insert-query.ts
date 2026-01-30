@@ -18,11 +18,6 @@ export class InsertQuery<
     return this;
   }
 
-  returning(...columns: Array<keyof TTable[T] | "*">): this {
-    this._columns = columns.length ? columns : ["*"];
-    return this;
-  }
-
   /**
    * @internal For debugging only.
    * Use QueryExecutor instance.execute() in normal usage.

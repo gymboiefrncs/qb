@@ -16,10 +16,10 @@ export abstract class BaseQuery<
     this._table = table;
   }
 
-  andWhere<K extends keyof T>(
+  andWhere<K extends keyof TTable[T]>(
     column: K,
     operator: Operators,
-    value: T[K],
+    value: TTable[T][K],
   ): this {
     if (this._conditions.length === 0) {
       throw new Error("Use where for the first condition");
@@ -28,10 +28,10 @@ export abstract class BaseQuery<
     return this;
   }
 
-  orWhere<K extends keyof T>(
+  orWhere<K extends keyof TTable[T]>(
     column: K,
     operator: Operators,
-    value: T[K],
+    value: TTable[T][K],
   ): this {
     if (this._conditions.length === 0) {
       throw new Error("Use where for the first condition");
@@ -40,11 +40,20 @@ export abstract class BaseQuery<
     return this;
   }
 
-  where<K extends keyof T>(column: K, operator: Operators, value: T[K]): this {
+  where<K extends keyof TTable[T]>(
+    column: K,
+    operator: Operators,
+    value: TTable[T][K],
+  ): this {
     if (this._conditions.length > 0) {
       throw new Error("Use andWhere/orWhere for additional conditions");
     }
     this._conditions.push({ column, operator, value });
+    return this;
+  }
+
+  returning(...columns: Array<keyof TTable[T] | "*">): this {
+    this._columns = columns.length ? columns : ["*"];
     return this;
   }
 }
