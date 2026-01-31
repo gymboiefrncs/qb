@@ -1,5 +1,9 @@
 import type { Pool } from "pg";
-import type { ExecutableQuery, PrimitiveTypes } from "../../types/queries.js";
+import type {
+  ExecutableQuery,
+  PrimitiveTypes,
+  NoWhere,
+} from "../../types/queries.js";
 import { InsertQuery } from "./insert-query.js";
 import { SelectQuery } from "./select-query.js";
 import { UpdateQuery } from "./update-query.js";
@@ -17,16 +21,16 @@ export class QueryExecutor<
     return new InsertQuery<TTable, T>(table);
   }
 
-  select<T extends keyof TTable>(table: T) {
-    return new SelectQuery<TTable, T>(table);
+  select<T extends keyof TTable>(table: T): SelectQuery<TTable, T, NoWhere> {
+    return new SelectQuery<TTable, T, NoWhere>(table);
   }
 
-  update<T extends keyof TTable>(table: T) {
-    return new UpdateQuery<TTable, T>(table);
+  update<T extends keyof TTable>(table: T): UpdateQuery<TTable, T, NoWhere> {
+    return new UpdateQuery<TTable, T, NoWhere>(table);
   }
 
-  delete<T extends keyof TTable>(table: T) {
-    return new DeleteQuery<TTable, T>(table);
+  delete<T extends keyof TTable>(table: T): DeleteQuery<TTable, T, NoWhere> {
+    return new DeleteQuery<TTable, T, NoWhere>(table);
   }
 
   // perform sql insert statement

@@ -6,8 +6,12 @@ import type { TableMap } from "./types/queries.js";
 async function test() {
   const executor = new QueryExecutor<TableMap>(pool);
   try {
-    const d = executor.delete("users").where("id", "=", 1);
-    await executor.execute(d);
+    const i = executor
+      .select("users")
+      .columns()
+      .where("id", "<", 4)
+      .andWhere("age", "<", 2);
+    await executor.execute(i);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
   } finally {
