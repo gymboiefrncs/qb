@@ -16,16 +16,39 @@ export type TableMap = {
   posts: Post;
 };
 
+// Lib types
 export type Conditions = {
   column: unknown;
-  operator: Operators;
+  operator: StringOperators | Operators;
   value: unknown;
   connector?: Connector;
 };
 
 export type ExecutableQuery = { toSql(): { sql: string; bindings: unknown[] } };
 
-export type Operators = ">" | "<" | "=" | "!=";
+export type ValidOperators<T> = T extends string
+  ? Operators | StringOperators
+  : Operators;
+
+export type NullOperators = "IS NULL" | "IS NOT NULL";
+
+type Operators =
+  | ">"
+  | "<"
+  | "="
+  | "!="
+  | "<="
+  | ">="
+  | "IS NULL"
+  | "IS NOT NULL";
+
+type StringOperators =
+  | "LIKE"
+  | "NOT LIKE"
+  | "ILIKE"
+  | "NOT ILIKE"
+  | "IN"
+  | "NOT IN";
 
 export type Connector = "AND" | "OR";
 

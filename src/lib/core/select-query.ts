@@ -1,5 +1,5 @@
 import type {
-  Operators,
+  ValidOperators,
   PrimitiveTypes,
   HasWhere,
 } from "../../types/queries.js";
@@ -18,30 +18,66 @@ export class SelectQuery<
   where<K extends keyof TTable[T]>(
     this: State["_hasWhere"] extends false ? this : never,
     column: K,
-    operator: Operators,
+    operator: ValidOperators<TTable[T][K]>,
     value: TTable[T][K],
   ): SelectQuery<TTable, T, HasWhere> {
-    this._where(column, operator, value);
+    this._conditions.push({ column, operator, value });
     return this as unknown as SelectQuery<TTable, T, HasWhere>;
   }
 
   andWhere<K extends keyof TTable[T]>(
     this: State["_hasWhere"] extends true ? this : never,
     column: K,
-    operator: Operators,
+    operator: ValidOperators<TTable[T][K]>,
     value: TTable[T][K],
   ): SelectQuery<TTable, T, HasWhere> {
-    this._andWhere(column, operator, value);
+    this._conditions.push({ column, operator, value, connector: "AND" });
     return this as unknown as SelectQuery<TTable, T, HasWhere>;
   }
 
   orWhere<K extends keyof TTable[T]>(
     this: State["_hasWhere"] extends true ? this : never,
     column: K,
-    operator: Operators,
+    operator: ValidOperators<TTable[T][K]>,
     value: TTable[T][K],
   ): SelectQuery<TTable, T, HasWhere> {
-    this._orWhere(column, operator, value);
+    this._conditions.push({ column, operator, value, connector: "OR" });
+    return this as unknown as SelectQuery<TTable, T, HasWhere>;
+  }
+
+  andWhereNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends true ? this : never,
+    column: K,
+    operator: "IS NULL",
+  ): SelectQuery<TTable, T, HasWhere> {
+    this._conditions.push({ column, operator, value: null, connector: "AND" });
+    return this as unknown as SelectQuery<TTable, T, HasWhere>;
+  }
+
+  orWhereNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends true ? this : never,
+    column: K,
+    operator: "IS NULL",
+  ): SelectQuery<TTable, T, HasWhere> {
+    this._conditions.push({ column, operator, value: null, connector: "OR" });
+    return this as unknown as SelectQuery<TTable, T, HasWhere>;
+  }
+
+  whereNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends false ? this : never,
+    column: K,
+    operator: "IS NULL",
+  ) {
+    this._conditions.push({ column, operator, value: null });
+    return this as unknown as SelectQuery<TTable, T, HasWhere>;
+  }
+
+  whereNotNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends false ? this : never,
+    column: K,
+    operator: "IS NOT NULL",
+  ) {
+    this._conditions.push({ column, operator, value: null });
     return this as unknown as SelectQuery<TTable, T, HasWhere>;
   }
 
@@ -56,20 +92,10 @@ export class SelectQuery<
     if (!this._columns)
       throw new Error("SelectQueryError: column not provided");
 
-    let placeholder = 1;
-    // if theres only one condition, dont add prefix. otherwise, add prefix
-    const condition = this._conditions
-      .map((c, i) => {
-        const prefix = i === 0 ? "" : ` ${c.connector}`;
-        return `${prefix} ${c.column} ${c.operator} $${placeholder++}`;
-      })
-      .join("");
+    const { clause, bindings } = this._buildWhereClause(this._conditions);
 
-    const whereClause = condition ? ` WHERE${condition}` : "";
-
-    const bindings = this._conditions.map((c) => c.value);
-    const sql = `SELECT ${this._columns.join(", ")} FROM ${String(this._table)}${whereClause}`;
-
+    let sql = `SELECT ${this._columns.join(", ")} FROM ${String(this._table)}`;
+    if (clause) sql += clause;
     return { sql, bindings };
   }
 }

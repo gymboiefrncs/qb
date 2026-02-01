@@ -1,5 +1,5 @@
 import type {
-  Operators,
+  ValidOperators,
   PrimitiveTypes,
   HasWhere,
 } from "../../types/queries.js";
@@ -13,48 +13,73 @@ export class DeleteQuery<
   where<K extends keyof TTable[T]>(
     this: State["_hasWhere"] extends false ? this : never,
     column: K,
-    operator: Operators,
+    operator: ValidOperators<TTable[T][K]>,
     value: TTable[T][K],
   ): DeleteQuery<TTable, T, HasWhere> {
-    this._where(column, operator, value);
+    this._conditions.push({ column, operator, value });
     return this as unknown as DeleteQuery<TTable, T, HasWhere>;
   }
 
   andWhere<K extends keyof TTable[T]>(
     this: State["_hasWhere"] extends true ? this : never,
     column: K,
-    operator: Operators,
+    operator: ValidOperators<TTable[T][K]>,
     value: TTable[T][K],
   ): DeleteQuery<TTable, T, HasWhere> {
-    this._andWhere(column, operator, value);
+    this._conditions.push({ column, operator, value, connector: "AND" });
     return this as unknown as DeleteQuery<TTable, T, HasWhere>;
   }
 
   orWhere<K extends keyof TTable[T]>(
     this: State["_hasWhere"] extends true ? this : never,
     column: K,
-    operator: Operators,
+    operator: ValidOperators<TTable[T][K]>,
     value: TTable[T][K],
   ): DeleteQuery<TTable, T, HasWhere> {
-    this._orWhere(column, operator, value);
+    this._conditions.push({ column, operator, value, connector: "OR" });
+    return this as unknown as DeleteQuery<TTable, T, HasWhere>;
+  }
+
+  andWhereNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends true ? this : never,
+    column: K,
+    operator: "IS NULL",
+  ): DeleteQuery<TTable, T, HasWhere> {
+    this._conditions.push({ column, operator, value: null, connector: "AND" });
+    return this as unknown as DeleteQuery<TTable, T, HasWhere>;
+  }
+
+  orWhereNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends true ? this : never,
+    column: K,
+    operator: "IS NULL",
+  ): DeleteQuery<TTable, T, HasWhere> {
+    this._conditions.push({ column, operator, value: null, connector: "OR" });
+    return this as unknown as DeleteQuery<TTable, T, HasWhere>;
+  }
+
+  whereNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends false ? this : never,
+    column: K,
+    operator: "IS NULL",
+  ): DeleteQuery<TTable, T, HasWhere> {
+    this._conditions.push({ column, operator, value: null });
+    return this as unknown as DeleteQuery<TTable, T, HasWhere>;
+  }
+
+  whereNotNull<K extends keyof TTable[T]>(
+    this: State["_hasWhere"] extends false ? this : never,
+    column: K,
+    operator: "IS NOT NULL",
+  ): DeleteQuery<TTable, T, HasWhere> {
+    this._conditions.push({ column, operator, value: null });
     return this as unknown as DeleteQuery<TTable, T, HasWhere>;
   }
 
   toSql(): { sql: string; bindings: unknown[] } {
-    let placeholder = 1;
-    // if theres only one condition, dont add prefix. otherwise, add prefix
+    const { clause, bindings } = this._buildWhereClause(this._conditions);
 
-    const condition = this._conditions
-      .map((c, i) => {
-        const prefix = i === 0 ? "" : ` ${c.connector}`;
-        return `${prefix} ${c.column} ${c.operator} $${placeholder++}`;
-      })
-      .join("");
-
-    const bindings = this._conditions.map((c) => c.value);
-    const whereClause = condition ? ` WHERE${condition}` : "";
-
-    const sql = `DELETE FROM ${String(this._table)}${whereClause}`;
+    const sql = `DELETE FROM ${String(this._table)}${clause}`;
     return { sql, bindings };
   }
 }

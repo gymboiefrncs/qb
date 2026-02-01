@@ -1,7 +1,7 @@
 import type {
   PrimitiveTypes,
-  Operators,
   Conditions,
+  NullOperators,
 } from "../../types/queries.js";
 
 export abstract class BaseQuery<
@@ -16,31 +16,26 @@ export abstract class BaseQuery<
     this._table = table;
   }
 
-  /** @internal - Use typed wrapper in subclass */
-  protected _andWhere<K extends keyof TTable[T]>(
-    column: K,
-    operator: Operators,
-    value: TTable[T][K],
-  ): void {
-    this._conditions.push({ column, operator, value, connector: "AND" });
-  }
+  /** @internal */
+  protected _buildWhereClause(
+    conditions: Conditions[],
+    startingPlaceholder: number = 1,
+  ) {
+    const bindings: unknown[] = [];
+    const condition = conditions
+      .map((c, i) => {
+        const prefix = i === 0 ? " WHERE" : ` ${c.connector}`;
+        const nullOperators: NullOperators[] = ["IS NULL", "IS NOT NULL"];
 
-  /** @internal - Use typed wrapper in subclass */
-  protected _orWhere<K extends keyof TTable[T]>(
-    column: K,
-    operator: Operators,
-    value: TTable[T][K],
-  ): void {
-    this._conditions.push({ column, operator, value, connector: "OR" });
-  }
+        if (nullOperators.includes(c.operator as NullOperators)) {
+          return `${prefix} ${c.column} ${c.operator}`;
+        }
+        bindings.push(c.value);
+        return `${prefix} ${c.column} ${c.operator} $${startingPlaceholder++}`;
+      })
+      .join("");
 
-  /** @internal - Use typed wrapper in subclass */
-  protected _where<K extends keyof TTable[T]>(
-    column: K,
-    operator: Operators,
-    value: TTable[T][K],
-  ): void {
-    this._conditions.push({ column, operator, value });
+    return { clause: condition, bindings };
   }
 
   returning(...columns: Array<keyof TTable[T] | "*">): this {
